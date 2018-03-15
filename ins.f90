@@ -9,15 +9,16 @@ module problem_setup
   implicit none
   real(dp), parameter :: Lx = 1.0_dp
   real(dp), parameter :: Ly = 1.0_dp
-  integer,  parameter :: Nx = 50
-  integer,  parameter :: Ny = 50
-  integer,  parameter :: Nsteps = 5000
-  integer,  parameter :: Nplot = 100
-  real(dp), parameter :: k = 0.01_dp
-  real(dp), parameter :: alpha = 0.1_dp/k
-  real(dp), parameter :: nu = 0.01_dp
+  integer,  parameter :: Nx = 50          ! Number of gridpoints in x
+  integer,  parameter :: Ny = 50          ! Number of gridpoints in y
+  integer,  parameter :: Nsteps = 5000    ! Number of timesteps  
+  logical, parameter :: do_plot = .true.  ! Plot?
+  integer,  parameter :: Nplot = 100      ! If so plot every Nplot steps  
+  real(dp), parameter :: k = 0.01_dp      ! Timestep 
+  real(dp), parameter :: alpha = 0.1_dp/k 
+  real(dp), parameter :: nu = 0.01_dp     ! Viscosity 
   real(dp), parameter :: pi = acos(-1.d0)
-  logical, parameter :: do_plot = .true.
+  
 end module problem_setup
 
 module arrs
