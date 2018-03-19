@@ -135,6 +135,37 @@ contains
 
 end module afuns
 
+module new_nla_solvers
+contains
+
+  subroutine PCG(A, b)
+    use type_defs
+    implicit none
+    integer :: A, b ! TODO: swap out for real types
+
+  ! TODO: implement preconditioned conjugate gradient method here
+
+  end subroutine PCG
+
+  subroutine precondition_matrix(A, b)
+    use type_defs
+    implicit none
+    integer :: A, b ! TODO: swap out for real types
+
+    ! TODO: precondition A and replace with M^{-1} A
+
+  end subroutine precondition_matrix
+
+  subroutine GS(A, b)
+    use type_defs
+    implicit none
+    integer :: A, b ! TODO: swap out for real types
+
+    ! TODO: implement Gauss-Seidel and store result in b
+
+  end subroutine GS
+
+end module new_nla_solvers
 
 program ins
   use type_defs
@@ -142,6 +173,7 @@ program ins
   use arrs
   use matrices
   use afuns
+  use new_nla_solvers
   implicit none
   ! This program solves the incompressible Navier-Stokes equations on
   ! the domain [x,y] \in [0,Lx] \times [0,Ly] using a grid spacing
@@ -264,6 +296,20 @@ program ins
   ! Solve for p
   CALL DGETRS('N',sys_size_pbig,1,LapPbig,sys_size_pbig,IPIV_pbig,&
     pbvecbig,sys_size_pbig,INFO)
+
+  ! NOTES:
+  ! 'N' specifies 'no transpose'
+  ! sys_size_pbig = order of matrix, i.e. nxn where n = sys_size_pbig
+  ! 1 = solving 1 RHS, i.e. B is a vector
+  ! LapPbig = A, the matrix on LHS
+  ! sys_size_pbig = max(1,N) where A is NxN
+  ! IPIV_pbig is an array of pivot indices produced by DGERTF
+  ! pbvecbig is B, but gets replaced by x, the solution to Ax=B
+  ! sys_size_pbig is dimension of B
+  ! INFO is the exit code, 0 means success
+  
+  ! goal: write a new function that solves this but with PCG
+
   ! !!! END YOUR CODE REPLACES THIS !!!!
 
   ! Swap long vector into 2D array
@@ -288,6 +334,10 @@ program ins
   ! Solve for p
   CALL DGETRS('N',sys_size_pbig,1,LapPbig,sys_size_pbig,IPIV_pbig,pbvecbig,&
     sys_size_pbig,INFO)
+
+  ! This appears to be the same solve as above
+  ! can just use name PCG function ideally
+
   ! !!! END YOUR CODE REPLACES THIS !!!!
 
   ! Swap long vector into 2D array
@@ -314,7 +364,13 @@ program ins
 
    ! !!! YOUR CODE REPLACES THIS !!!!
    CALL DGETRS('N',sys_size_uv,1,Lapuv,sys_size_uv,IPIV_uv,uvec,sys_size_uv,INFO)
+   
+   ! solves (Lapuv) * x = (uvec) and stores x in uvec
+
    CALL DGETRS('N',sys_size_uv,1,Lapuv,sys_size_uv,IPIV_uv,vvec,sys_size_uv,INFO)
+   
+   ! solves (Lapuv) * x = (vvec) and stores x in vvec
+  
    ! !!! END YOUR CODE REPLACES THIS !!!!
 
    ! Swap long vector into 2D array
@@ -334,6 +390,9 @@ program ins
    ! Solve for p
    CALL DGETRS('N',sys_size_pbig,1,LapPbig,sys_size_pbig,IPIV_pbig,&
      pbvecbig,sys_size_pbig,INFO)
+   
+   ! solves (LapPbig) * x = pbvecbig and stores x in pbvecbig
+
    ! !!! END YOUR CODE REPLACES THIS !!!!
 
    ! Swap long vector into 2D array
