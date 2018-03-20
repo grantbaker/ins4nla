@@ -173,6 +173,7 @@ contains
      x(j) = 0
     end do
 
+    ! TODO: stop iteration at norm, not 10 hardcoded
     do k = 0, 10
      ! set x = b-Ux
      do j = 1,n-1
@@ -367,8 +368,10 @@ program ins
 
   ! !!! YOUR CODE REPLACES THIS !!!!
   ! Solve for p
-  CALL DGETRS('N',sys_size_pbig,1,LapPbig,sys_size_pbig,IPIV_pbig,pbvecbig,&
-    sys_size_pbig,INFO)
+  !CALL DGETRS('N',sys_size_pbig,1,LapPbig,sys_size_pbig,IPIV_pbig,pbvecbig,&
+  !  sys_size_pbig,INFO)
+
+  call GS(LapPbig, pbvecbig, sys_size_pbig)
 
   ! This appears to be the same solve as above
   ! can just use name PCG function ideally
@@ -398,12 +401,16 @@ program ins
    ! solve for new u and v
 
    ! !!! YOUR CODE REPLACES THIS !!!!
-   CALL DGETRS('N',sys_size_uv,1,Lapuv,sys_size_uv,IPIV_uv,uvec,sys_size_uv,INFO)
+   !CALL DGETRS('N',sys_size_uv,1,Lapuv,sys_size_uv,IPIV_uv,uvec,sys_size_uv,INFO)
    
+   call GS(Lapuv, uvec, sys_size_uv)
+
    ! solves (Lapuv) * x = (uvec) and stores x in uvec
 
-   CALL DGETRS('N',sys_size_uv,1,Lapuv,sys_size_uv,IPIV_uv,vvec,sys_size_uv,INFO)
-   
+   !CALL DGETRS('N',sys_size_uv,1,Lapuv,sys_size_uv,IPIV_uv,vvec,sys_size_uv,INFO)
+
+   call GS(Lapuv, vvec, sys_size_uv)
+
    ! solves (Lapuv) * x = (vvec) and stores x in vvec
   
    ! !!! END YOUR CODE REPLACES THIS !!!!
@@ -423,9 +430,11 @@ program ins
 
    ! !!! YOUR CODE REPLACES THIS !!!!
    ! Solve for p
-   CALL DGETRS('N',sys_size_pbig,1,LapPbig,sys_size_pbig,IPIV_pbig,&
-     pbvecbig,sys_size_pbig,INFO)
-   
+   !CALL DGETRS('N',sys_size_pbig,1,LapPbig,sys_size_pbig,IPIV_pbig,&
+   !  pbvecbig,sys_size_pbig,INFO)
+
+   call GS(LapPbig, pbvecbig, sys_size_pbig)   
+
    ! solves (LapPbig) * x = pbvecbig and stores x in pbvecbig
 
    ! !!! END YOUR CODE REPLACES THIS !!!!

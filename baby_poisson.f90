@@ -7,7 +7,7 @@ end module type_defs
 module problem_setup
   use type_defs
   implicit none
-  integer,  parameter :: Nx = 100
+  integer,  parameter :: Nx = 10000
 end module problem_setup
 
 module arrs
@@ -78,6 +78,48 @@ contains
     end do
   end subroutine jacobi
   
+
+subroutine cg(x,b,nx,hx,l)
+    use type_defs
+    use afuns
+    implicit none
+    integer, intent(in) :: nx
+    real(dp), intent(inout)  :: hx
+    real(dp), intent(inout)  :: x(nx)
+    real(dp), intent(inout)  :: b(nx)
+    integer, intent(out) :: l
+    real(dp) :: ax(nx),r(nx),p(nx),q(nx),rtr,alpha,rtrold,beta,A(nx,nx),xn
+    real(dp) :: delta,rho,s,si,tol
+    integer :: i
+
+    call apply_1D_laplacian(ax,x,nx,hx)
+    r=b-ax
+    p=r
+    rtr=sum(r*r)
+!    delta = TOL*sqrt(sum(b*b))
+ !   rho = 10.0_dp*delta
+ !   si = 0.5_dp*hx**2
+ !   s = 1.0_dp/si
+    
+    ! loop
+    l = 0
+  !  do while (sqrt(rho) .gt. delta)
+    tol=1.0e-5_dp
+    do while(sum(r*r) .gt.tol)
+       call apply_1D_laplacian(q,p,nx,hx)
+       alpha=rtr/sum(p*q)
+       x=x+alpha*p
+       r=r-alpha*q
+       rtrold=rtr
+       rtr=sum(r*r)
+       beta=rtr/rtrold
+       p=r+beta*p
+l = l+1
+write(*,*) l,rtr
+       end do
+
+  end subroutine cg
+  
 end module iterative_solvers
 
 program ins
@@ -100,7 +142,7 @@ program ins
   allocate(u(0:nx),b(1:nx-1))
   b = -2.0_dp
   u = 0.0_dp
-  call jacobi(u(1:nx-1),b,nx-1,hx,n_iter)
+  call cg(u(1:nx-1),b,nx-1,hx,n_iter)
   write(*,*) "Noumber of iter ", n_iter, ' Error: '  ,&
     maxval(abs(u - x*(1.0_dp-x)))
 end program ins
