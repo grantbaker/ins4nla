@@ -143,7 +143,7 @@ contains
     implicit none
     integer :: A, b ! TODO: swap out for real types
 
-  ! TODO: implement preconditioned conjugate gradient method here
+    ! TODO: implement preconditioned conjugate gradient method here
 
   end subroutine PCG
 
@@ -156,16 +156,49 @@ contains
 
   end subroutine precondition_matrix
 
-  subroutine GS(A, b)
+  subroutine GS(A, b, n)
     use type_defs
     implicit none
-    integer :: A, b ! TODO: swap out for real types
+    integer, intent(in) :: n
+    real(dp), intent(in) :: A(n,n)
+    real(dp), intent(inout) :: b(n)
+    real(dp), allocatable, dimension(:) :: x
+    integer :: i, j, k
+    ! implement Gauss-Seidel and store result in b
+    ! TODO: verify that this algorithm is correct
 
-    ! TODO: implement Gauss-Seidel and store result in b
+    allocate(x(n))
 
+    do j = 1,n
+     x(j) = 0
+    end do
+
+    do k = 0, 10
+     ! set x = b-Ux
+     do j = 1,n-1
+      x(j) = b(j)
+      do i = j+1,n
+       x(j) = x(j) - A(i,j)*x(i)
+      end do
+     x(n) = b(n)
+     end do
+     
+     ! set x = L^-1 x
+     x(1) = x(1)/A(1,1)
+     do j = 2, n
+      do i = 1, j-1
+       x(j) = x(j) - A(i,j)*x(i)
+      end do
+      x(j) = x(j)/A(j,j)
+     end do
+    end do
+
+    b = x
+    
   end subroutine GS
 
 end module new_nla_solvers
+
 
 program ins
   use type_defs
@@ -294,8 +327,10 @@ program ins
 
   ! !!! YOUR CODE REPLACES THIS !!!!
   ! Solve for p
-  CALL DGETRS('N',sys_size_pbig,1,LapPbig,sys_size_pbig,IPIV_pbig,&
-    pbvecbig,sys_size_pbig,INFO)
+  !CALL DGETRS('N',sys_size_pbig,1,LapPbig,sys_size_pbig,IPIV_pbig,&
+  !  pbvecbig,sys_size_pbig,INFO)
+
+  call GS(LapPbig,pbvecbig,sys_size_pbig)
 
   ! NOTES:
   ! 'N' specifies 'no transpose'
