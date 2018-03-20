@@ -136,6 +136,10 @@ contains
 end module afuns
 
 module new_nla_solvers
+  use type_defs
+  implicit none
+  real(dp), parameter :: TOL = 1.0e-12_dp
+
 contains
 
   subroutine PCG(A, b)
@@ -146,6 +150,29 @@ contains
     ! TODO: implement preconditioned conjugate gradient method here
 
   end subroutine PCG
+  
+  subroutine CG_velocity(b, nx, ny, hx, hy, l)
+    use type_defs
+    use afuns
+    implicit none
+    integer, intent(in) :: nx, ny
+    real(dp), intent(in) :: hx, hy
+    real(dp, intent(inout) :: b(nx)
+    integer, intent(out) :: l
+    real(dp) :: x(nx), ax(nx), r(nx), p(nx), q(nx), rtr, alpha, rtrold, beta
+
+    call apply_velocity_laplacian(ax, x, nx, ny, hx, hy)
+    ax = x - 
+
+
+    r = b - ax
+    p = r
+    rtr = sum(r*r)
+
+    l = 0 
+
+    do while(sum(r*r) .gt. TOL)
+     call apply_velocity)laplacian(
 
   subroutine precondition_matrix(A, b)
     use type_defs

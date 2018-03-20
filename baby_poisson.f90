@@ -143,6 +143,6 @@ program ins
   b = -2.0_dp
   u = 0.0_dp
   call cg(u(1:nx-1),b,nx-1,hx,n_iter)
-  write(*,*) "Noumber of iter ", n_iter, ' Error: '  ,&
+  write(*,*) "Number of iter ", n_iter, ' Error: '  ,&
     maxval(abs(u - x*(1.0_dp-x)))
 end program ins
