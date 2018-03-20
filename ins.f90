@@ -151,7 +151,7 @@ contains
 
   end subroutine PCG
   
-  subroutine CG_velocity(b, nx, ny, hx, hy, k)
+  subroutine CG_velocity_apply(b, nx, ny, hx, hy, k)
     use type_defs
     use afuns
     implicit none
@@ -188,7 +188,43 @@ contains
     end do
 
     b = x
-  end subroutine CG_velocity
+  end subroutine CG_velocity_apply
+
+  subroutine CG_velocity_mult(A, b, nx, ny, hx, hy, k)
+    use type_defs
+    use afuns
+    implicit none
+    integer, intent(in) :: nx, ny
+    real(dp), intent(in) :: hx, hy, k, A((nx-1)*(ny-1), (nx-1)*(ny-1))
+    real(dp), intent(inout) :: b((nx-1)*(ny-1))
+    integer :: l
+    real(dp) :: x((nx-1)*(ny-1)), ax((nx-1)*(ny-1))
+    real(dp) :: r((nx-1)*(ny-1)), p((nx-1)*(ny-1)), q((nx-1)*(ny-1))
+    real(dp) :: rtr, alpha, rtrold, beta
+
+    ax = matmul(A, x)
+    
+    r = b - ax
+    p = r
+    rtr = sum(r*r)
+
+    l = 0
+
+    do while(sum(r*r) .gt. TOL)
+     q = matmul(A, p)
+     alpha = rtr / sum(p*q)
+     x = x + alpha*p
+     r = r - alpha*q
+     rtrold = rtr
+     rtr = sum(r*r)
+     beta = rtr/rtrold
+     p = r + beta*p
+     l = l + 1
+     write(*,*) l, rtr
+    end do
+
+    b = x
+  end subroutine CG_velocity_mult
 
   subroutine precondition_matrix(A, b)
     use type_defs
@@ -447,14 +483,16 @@ program ins
    !CALL DGETRS('N',sys_size_uv,1,Lapuv,sys_size_uv,IPIV_uv,uvec,sys_size_uv,INFO)
    
    !call GS(Lapuv, uvec, sys_size_uv)
-   call CG_velocity(uvec, nx, ny, hx, hy, k)
+   call CG_velocity_apply(uvec, nx, ny, hx, hy, k)
+   !call CG_velocity_mult(Lapuv, uvec, nx, ny, hx, hy, k)
 
    ! solves (Lapuv) * x = (uvec) and stores x in uvec
 
    !CALL DGETRS('N',sys_size_uv,1,Lapuv,sys_size_uv,IPIV_uv,vvec,sys_size_uv,INFO)
 
    !call GS(Lapuv, vvec, sys_size_uv)
-   call CG_velocity(vvec, nx, ny, hx, hy, k)
+   call CG_velocity_apply(vvec, nx, ny, hx, hy, k)
+   !call CG_velocity_mult(Lapuv, vvec, nx, ny, hx, hy, k)
 
    ! solves (Lapuv) * x = (vvec) and stores x in vvec
   
