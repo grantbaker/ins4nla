@@ -138,7 +138,7 @@ end module afuns
 module new_nla_solvers
   use type_defs
   implicit none
-  real(dp), parameter :: TOL = 1.0e-12_dp
+  real(dp), parameter :: TOL = 1.0e-1_dp
 
 contains
 
@@ -157,9 +157,11 @@ contains
     implicit none
     integer, intent(in) :: nx, ny
     real(dp), intent(in) :: hx, hy, k
-    real(dp), intent(inout) :: b(nx)
+    real(dp), intent(inout) :: b((nx-1)*(ny-1))
     integer :: l
-    real(dp) :: x(nx), ax(nx), r(nx), p(nx), q(nx), rtr, alpha, rtrold, beta
+    real(dp) :: x((nx-1)*(ny-1)), ax((nx-1)*(ny-1))
+    real(dp) :: r((nx-1)*(ny-1)), p((nx-1)*(ny-1)), q((nx-1)*(ny-1))
+    real(dp) :: rtr, alpha, rtrold, beta
 
     call apply_velocity_laplacian(ax, x, nx, ny, hx, hy)
     ax = x/k - ax/2
@@ -182,7 +184,7 @@ contains
      beta = rtr/rtrold
      p = r + beta*p
      l = l + 1
-     ! write(*,*) l, rtr
+     write(*,*) l, rtr
     end do
 
     b = x
@@ -206,7 +208,7 @@ contains
     real(dp), allocatable, dimension(:) :: x
     integer :: i, j, k
     ! implement Gauss-Seidel and store result in b
-    ! TODO: verify that this algorithm is correct
+    ! TODO: correct this algorithm!!
 
     allocate(x(n))
 
