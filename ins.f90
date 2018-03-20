@@ -151,18 +151,18 @@ contains
 
   end subroutine PCG
   
-  subroutine CG_velocity(b, nx, ny, hx, hy, l)
+  subroutine CG_velocity(b, nx, ny, hx, hy, k)
     use type_defs
     use afuns
     implicit none
     integer, intent(in) :: nx, ny
-    real(dp), intent(in) :: hx, hy
-    real(dp, intent(inout) :: b(nx)
-    integer, intent(out) :: l
+    real(dp), intent(in) :: hx, hy, k
+    real(dp), intent(inout) :: b(nx)
+    integer :: l
     real(dp) :: x(nx), ax(nx), r(nx), p(nx), q(nx), rtr, alpha, rtrold, beta
 
     call apply_velocity_laplacian(ax, x, nx, ny, hx, hy)
-    ax = x - 
+    ax = x/k - ax/2
 
 
     r = b - ax
@@ -172,7 +172,21 @@ contains
     l = 0 
 
     do while(sum(r*r) .gt. TOL)
-     call apply_velocity)laplacian(
+     call apply_velocity_laplacian(q, p, nx, ny, hx, hy)
+     q = p/k - q/2
+     alpha = rtr / sum(p*q)
+     x = x + alpha*p
+     r = r - alpha*q
+     rtrold = rtr
+     rtr = sum(r*r)
+     beta = rtr/rtrold
+     p = r + beta*p
+     l = l + 1
+     ! write(*,*) l, rtr
+    end do
+
+    b = x
+  end subroutine CG_velocity
 
   subroutine precondition_matrix(A, b)
     use type_defs
@@ -355,10 +369,10 @@ program ins
 
   ! !!! YOUR CODE REPLACES THIS !!!!
   ! Solve for p
-  !CALL DGETRS('N',sys_size_pbig,1,LapPbig,sys_size_pbig,IPIV_pbig,&
-  !  pbvecbig,sys_size_pbig,INFO)
+  CALL DGETRS('N',sys_size_pbig,1,LapPbig,sys_size_pbig,IPIV_pbig,&
+    pbvecbig,sys_size_pbig,INFO)
 
-  call GS(LapPbig,pbvecbig,sys_size_pbig)
+  !call GS(LapPbig,pbvecbig,sys_size_pbig)
 
   ! NOTES:
   ! 'N' specifies 'no transpose'
@@ -395,10 +409,10 @@ program ins
 
   ! !!! YOUR CODE REPLACES THIS !!!!
   ! Solve for p
-  !CALL DGETRS('N',sys_size_pbig,1,LapPbig,sys_size_pbig,IPIV_pbig,pbvecbig,&
-  !  sys_size_pbig,INFO)
+  CALL DGETRS('N',sys_size_pbig,1,LapPbig,sys_size_pbig,IPIV_pbig,pbvecbig,&
+    sys_size_pbig,INFO)
 
-  call GS(LapPbig, pbvecbig, sys_size_pbig)
+  !call GS(LapPbig, pbvecbig, sys_size_pbig)
 
   ! This appears to be the same solve as above
   ! can just use name PCG function ideally
@@ -430,13 +444,15 @@ program ins
    ! !!! YOUR CODE REPLACES THIS !!!!
    !CALL DGETRS('N',sys_size_uv,1,Lapuv,sys_size_uv,IPIV_uv,uvec,sys_size_uv,INFO)
    
-   call GS(Lapuv, uvec, sys_size_uv)
+   !call GS(Lapuv, uvec, sys_size_uv)
+   call CG_velocity(uvec, nx, ny, hx, hy, k)
 
    ! solves (Lapuv) * x = (uvec) and stores x in uvec
 
    !CALL DGETRS('N',sys_size_uv,1,Lapuv,sys_size_uv,IPIV_uv,vvec,sys_size_uv,INFO)
 
-   call GS(Lapuv, vvec, sys_size_uv)
+   !call GS(Lapuv, vvec, sys_size_uv)
+   call CG_velocity(vvec, nx, ny, hx, hy, k)
 
    ! solves (Lapuv) * x = (vvec) and stores x in vvec
   
