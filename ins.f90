@@ -142,7 +142,7 @@ module new_nla_solvers
 
 contains
 
-  subroutine CG_velocity_apply(b, nx, ny, hx, hy, k, nu)
+  subroutine CG_velocity(b, nx, ny, hx, hy, k, nu)
     use type_defs
     use afuns
     implicit none
@@ -181,7 +181,45 @@ contains
 
     b = x
     
-  end subroutine CG_velocity_apply
+  end subroutine CG_velocity
+
+  subroutine CG_pressure(b, nx, ny, hx, hy, k, nu)
+    use type_defs
+    use afuns
+    implicit none
+    integer, intent(in) :: nx, ny
+    real(dp), intent(in) :: hx, hy, k, nu
+    real(dp), intent(inout) :: b((nx-1)*(ny-1))
+    integer :: l
+    real(dp) :: x((nx-1)*(ny-1)), ax((nx-1)*(ny-1))
+    real(dp) :: r((nx-1)*(ny-1)), p((nx-1)*(ny-1)), q((nx-1)*(ny-1))
+    real(dp) :: rtr, alpha, rtrold, beta
+
+    x = 0
+    call apply_pressure_laplacian(ax, x, nx, ny, hx, hy)
+    
+    r = b - ax
+    p = r
+    rtr = sum(r*r)
+
+    l = 0
+
+    do while(sum(r*r) .gt. TOL)
+     call apply_pressure_laplacian(q, p, nx, ny, hx, hy)
+     alpha = rtr / sum(p*q)
+     x = x + alpha*p
+     r = r - alpha*q
+     rtrold = rtr
+     rtr = sum(r*r)
+     beta = rtr/rtrold
+     p = r + beta*p
+     l = l + 1
+
+    end do
+
+    b = x
+
+  end subroutine CG_pressure
 
 end module new_nla_solvers
 
@@ -388,17 +426,13 @@ program ins
    ! !!! YOUR CODE REPLACES THIS !!!!
    !CALL DGETRS('N',sys_size_uv,1,Lapuv,sys_size_uv,IPIV_uv,uvec,sys_size_uv,INFO)
    
-   !call GS(Lapuv, uvec, sys_size_uv)
-   call CG_velocity_apply(uvec, nx, ny, hx, hy, k, nu)
-   !call CG_velocity_mult(Lapuv, uvec, nx, ny, hx, hy, k)
+   call CG_velocity(uvec, nx, ny, hx, hy, k, nu)
 
    ! solves (Lapuv) * x = (uvec) and stores x in uvec
 
    !CALL DGETRS('N',sys_size_uv,1,Lapuv,sys_size_uv,IPIV_uv,vvec,sys_size_uv,INFO)
 
-   !call GS(Lapuv, vvec, sys_size_uv)
-   call CG_velocity_apply(vvec, nx, ny, hx, hy, k, nu)
-   !call CG_velocity_mult(Lapuv, vvec, nx, ny, hx, hy, k)
+   call CG_velocity(vvec, nx, ny, hx, hy, k, nu)
 
    ! solves (Lapuv) * x = (vvec) and stores x in vvec
   
