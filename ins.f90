@@ -9,14 +9,14 @@ module problem_setup
   implicit none
   real(dp), parameter :: Lx = 1.0_dp
   real(dp), parameter :: Ly = 1.0_dp
-  integer,  parameter :: Nx = 128          ! Number of gridpoints in x
-  integer,  parameter :: Ny = 128          ! Number of gridpoints in y
-  integer,  parameter :: Nsteps = 100000    ! Number of timesteps  
+  integer,  parameter :: Nx = 50          ! Number of gridpoints in x
+  integer,  parameter :: Ny = 50          ! Number of gridpoints in y
+  integer,  parameter :: Nsteps = 5000    ! Number of timesteps  
   logical, parameter :: do_plot = .true.  ! Plot?
   integer,  parameter :: Nplot = 100      ! If so plot every Nplot steps  
-  real(dp), parameter :: k = 0.00001_dp      ! Timestep 
+  real(dp), parameter :: k = 0.01_dp      ! Timestep 
   real(dp), parameter :: alpha = 0.1_dp/k 
-  real(dp), parameter :: nu = 0.0001_dp     ! Viscosity 
+  real(dp), parameter :: nu = 0.01_dp     ! Viscosity 
   real(dp), parameter :: pi = acos(-1.d0)
   
 end module problem_setup
@@ -138,19 +138,10 @@ end module afuns
 module new_nla_solvers
   use type_defs
   implicit none
-  real(dp), parameter :: TOL = 1.0e-15_dp
+  real(dp), parameter :: TOL = 1.0e-5_dp
 
 contains
 
-  subroutine PCG(A, b)
-    use type_defs
-    implicit none
-    integer :: A, b ! TODO: swap out for real types
-
-    ! TODO: implement preconditioned conjugate gradient method here
-
-  end subroutine PCG
-  
   subroutine CG_velocity_apply(b, nx, ny, hx, hy, k, nu)
     use type_defs
     use afuns
@@ -191,93 +182,6 @@ contains
     b = x
     
   end subroutine CG_velocity_apply
-
-  subroutine CG_velocity_mult(A, b, nx, ny, hx, hy, k)
-    use type_defs
-    use afuns
-    implicit none
-    integer, intent(in) :: nx, ny
-    real(dp), intent(in) :: hx, hy, k, A((nx-1)*(ny-1), (nx-1)*(ny-1))
-    real(dp), intent(inout) :: b((nx-1)*(ny-1))
-    integer :: l
-    real(dp) :: x((nx-1)*(ny-1)), ax((nx-1)*(ny-1))
-    real(dp) :: r((nx-1)*(ny-1)), p((nx-1)*(ny-1)), q((nx-1)*(ny-1))
-    real(dp) :: rtr, alpha, rtrold, beta
-
-    ax = matmul(A, x)
-    
-    r = b - ax
-    p = r
-    rtr = sum(r*r)
-
-    l = 0
-
-    do while(sum(r*r) .gt. TOL)
-     q = matmul(A, p)
-     alpha = rtr / sum(p*q)
-     x = x + alpha*p
-     r = r - alpha*q
-     rtrold = rtr
-     rtr = sum(r*r)
-     beta = rtr/rtrold
-     p = r + beta*p
-     l = l + 1
-     !write(*,*) l, rtr
-    end do
-
-    b = x
-  end subroutine CG_velocity_mult
-
-  subroutine precondition_matrix(A, b)
-    use type_defs
-    implicit none
-    integer :: A, b ! TODO: swap out for real types
-
-    ! TODO: precondition A and replace with M^{-1} A
-
-  end subroutine precondition_matrix
-
-  subroutine GS(A, b, n)
-    use type_defs
-    implicit none
-    integer, intent(in) :: n
-    real(dp), intent(in) :: A(n,n)
-    real(dp), intent(inout) :: b(n)
-    real(dp), allocatable, dimension(:) :: x
-    integer :: i, j, k
-    ! implement Gauss-Seidel and store result in b
-    ! TODO: correct this algorithm!!
-
-    allocate(x(n))
-
-    do j = 1,n
-     x(j) = 0
-    end do
-
-    ! TODO: stop iteration at norm, not 10 hardcoded
-    do k = 0, 10
-     ! set x = b-Ux
-     do j = 1,n-1
-      x(j) = b(j)
-      do i = j+1,n
-       x(j) = x(j) - A(i,j)*x(i)
-      end do
-     x(n) = b(n)
-     end do
-     
-     ! set x = L^-1 x
-     x(1) = x(1)/A(1,1)
-     do j = 2, n
-      do i = 1, j-1
-       x(j) = x(j) - A(i,j)*x(i)
-      end do
-      x(j) = x(j)/A(j,j)
-     end do
-    end do
-
-    b = x
-    
-  end subroutine GS
 
 end module new_nla_solvers
 
