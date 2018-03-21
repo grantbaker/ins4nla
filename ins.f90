@@ -9,14 +9,14 @@ module problem_setup
   implicit none
   real(dp), parameter :: Lx = 1.0_dp
   real(dp), parameter :: Ly = 1.0_dp
-  integer,  parameter :: Nx = 50          ! Number of gridpoints in x
-  integer,  parameter :: Ny = 50          ! Number of gridpoints in y
-  integer,  parameter :: Nsteps = 5000    ! Number of timesteps  
+  integer,  parameter :: Nx = 128          ! Number of gridpoints in x
+  integer,  parameter :: Ny = 128          ! Number of gridpoints in y
+  integer,  parameter :: Nsteps = 100000    ! Number of timesteps  
   logical, parameter :: do_plot = .true.  ! Plot?
   integer,  parameter :: Nplot = 100      ! If so plot every Nplot steps  
-  real(dp), parameter :: k = 0.01_dp      ! Timestep 
+  real(dp), parameter :: k = 0.00001_dp      ! Timestep 
   real(dp), parameter :: alpha = 0.1_dp/k 
-  real(dp), parameter :: nu = 0.01_dp     ! Viscosity 
+  real(dp), parameter :: nu = 0.0001_dp     ! Viscosity 
   real(dp), parameter :: pi = acos(-1.d0)
   
 end module problem_setup
@@ -151,12 +151,12 @@ contains
 
   end subroutine PCG
   
-  subroutine CG_velocity_apply(b, nx, ny, hx, hy, k)
+  subroutine CG_velocity_apply(b, nx, ny, hx, hy, k, nu)
     use type_defs
     use afuns
     implicit none
     integer, intent(in) :: nx, ny
-    real(dp), intent(in) :: hx, hy, k
+    real(dp), intent(in) :: hx, hy, k, nu
     real(dp), intent(inout) :: b((nx-1)*(ny-1))
     integer :: l
     real(dp) :: x((nx-1)*(ny-1)), ax((nx-1)*(ny-1))
@@ -165,7 +165,7 @@ contains
 
     x = 0
     call apply_velocity_laplacian(ax, x, nx, ny, hx, hy)
-    ax = x/k - ax/2
+    ax = x/k - nu*ax/2
 
 
     r = b - ax
@@ -176,7 +176,7 @@ contains
 
     do while(sum(r*r) .gt. TOL)
      call apply_velocity_laplacian(q, p, nx, ny, hx, hy)
-     q = p/k - q/2
+     q = p/k - nu*q/2
      alpha = rtr / sum(p*q)
      x = x + alpha*p
      r = r - alpha*q
@@ -359,7 +359,7 @@ program ins
   call cpu_time(time1)
   ! Factor
   CALL DGETRF(sys_size_pbig,sys_size_pbig,LapPbig,sys_size_pbig,ipiv_pbig,INFO)
-  CALL DGETRF(sys_size_uv,sys_size_uv,LapUV,sys_size_uv,ipiv_uv,INFO)
+  !CALL DGETRF(sys_size_uv,sys_size_uv,LapUV,sys_size_uv,ipiv_uv,INFO)
   call cpu_time(time2)
   write(*,*) '... factorization took ',time2-time1 ,' seconds'
 
@@ -485,7 +485,7 @@ program ins
    !CALL DGETRS('N',sys_size_uv,1,Lapuv,sys_size_uv,IPIV_uv,uvec,sys_size_uv,INFO)
    
    !call GS(Lapuv, uvec, sys_size_uv)
-   call CG_velocity_apply(uvec, nx, ny, hx, hy, k)
+   call CG_velocity_apply(uvec, nx, ny, hx, hy, k, nu)
    !call CG_velocity_mult(Lapuv, uvec, nx, ny, hx, hy, k)
 
    ! solves (Lapuv) * x = (uvec) and stores x in uvec
@@ -493,7 +493,7 @@ program ins
    !CALL DGETRS('N',sys_size_uv,1,Lapuv,sys_size_uv,IPIV_uv,vvec,sys_size_uv,INFO)
 
    !call GS(Lapuv, vvec, sys_size_uv)
-   call CG_velocity_apply(vvec, nx, ny, hx, hy, k)
+   call CG_velocity_apply(vvec, nx, ny, hx, hy, k, nu)
    !call CG_velocity_mult(Lapuv, vvec, nx, ny, hx, hy, k)
 
    ! solves (Lapuv) * x = (vvec) and stores x in vvec
