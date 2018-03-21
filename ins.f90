@@ -9,14 +9,14 @@ module problem_setup
   implicit none
   real(dp), parameter :: Lx = 1.0_dp
   real(dp), parameter :: Ly = 1.0_dp
-  integer,  parameter :: Nx = 100          ! Number of gridpoints in x
-  integer,  parameter :: Ny = 100          ! Number of gridpoints in y
+  integer,  parameter :: Nx = 50          ! Number of gridpoints in x
+  integer,  parameter :: Ny = 50          ! Number of gridpoints in y
   integer,  parameter :: Nsteps = 5000    ! Number of timesteps  
   logical, parameter :: do_plot = .true.  ! Plot?
   integer,  parameter :: Nplot = 100      ! If so plot every Nplot steps  
   real(dp), parameter :: k = 0.01_dp      ! Timestep 
   real(dp), parameter :: alpha = 0.1_dp/k 
-  real(dp), parameter :: nu = 0.001_dp     ! Viscosity 
+  real(dp), parameter :: nu = 0.01_dp     ! Viscosity 
   real(dp), parameter :: pi = acos(-1.d0)
   
 end module problem_setup
@@ -138,7 +138,7 @@ end module afuns
 module new_nla_solvers
   use type_defs
   implicit none
-  real(dp), parameter :: TOL = 1.0e-1_dp
+  real(dp), parameter :: TOL = 1.0e-15_dp
 
 contains
 
@@ -163,6 +163,7 @@ contains
     real(dp) :: r((nx-1)*(ny-1)), p((nx-1)*(ny-1)), q((nx-1)*(ny-1))
     real(dp) :: rtr, alpha, rtrold, beta
 
+    x = 0
     call apply_velocity_laplacian(ax, x, nx, ny, hx, hy)
     ax = x/k - ax/2
 
@@ -184,10 +185,11 @@ contains
      beta = rtr/rtrold
      p = r + beta*p
      l = l + 1
-     write(*,*) l, rtr
+     !write(*,*) l, rtr
     end do
 
     b = x
+    
   end subroutine CG_velocity_apply
 
   subroutine CG_velocity_mult(A, b, nx, ny, hx, hy, k)
@@ -220,7 +222,7 @@ contains
      beta = rtr/rtrold
      p = r + beta*p
      l = l + 1
-     write(*,*) l, rtr
+     !write(*,*) l, rtr
     end do
 
     b = x
@@ -513,10 +515,10 @@ program ins
 
    ! !!! YOUR CODE REPLACES THIS !!!!
    ! Solve for p
-   !CALL DGETRS('N',sys_size_pbig,1,LapPbig,sys_size_pbig,IPIV_pbig,&
-   !  pbvecbig,sys_size_pbig,INFO)
+   CALL DGETRS('N',sys_size_pbig,1,LapPbig,sys_size_pbig,IPIV_pbig,&
+     pbvecbig,sys_size_pbig,INFO)
 
-   call GS(LapPbig, pbvecbig, sys_size_pbig)   
+   !call GS(LapPbig, pbvecbig, sys_size_pbig)   
 
    ! solves (LapPbig) * x = pbvecbig and stores x in pbvecbig
 
