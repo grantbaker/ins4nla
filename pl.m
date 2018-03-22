@@ -27,7 +27,7 @@ for i = 1:length(a)
     drawnow
     % uncomment if you want to generate frames for movies 
     %
-    % print(['frame' num2str(i,'%05d') '.jpg'],'-djpeg')
+    print(['frame' num2str(i,'%05d') '.jpg'],'-djpeg')
     % Once you have generated the jpg files you can compile them
     % into a movie by  
     % ffmpeg -r 10 -i frame%05d.jpg test.mp4

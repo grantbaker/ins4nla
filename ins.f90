@@ -154,7 +154,7 @@ contains
     real(dp) :: r((nx-1)*(ny-1)), p((nx-1)*(ny-1)), q((nx-1)*(ny-1))
     real(dp) :: rtr, alpha, rtrold, beta
 
-    x = 0
+    x = 0.0_dp
     call apply_velocity_laplacian(ax, x, nx, ny, hx, hy)
     ax = x/k - nu*ax/2
 
@@ -183,21 +183,25 @@ contains
     
   end subroutine CG_velocity
 
-  subroutine CG_pressure(b, nx, ny, hx, hy, k, nu)
+  subroutine CG_pressure(b, nx, ny, hx, hy)
     use type_defs
     use afuns
     implicit none
     integer, intent(in) :: nx, ny
-    real(dp), intent(in) :: hx, hy, k, nu
-    real(dp), intent(inout) :: b((nx-1)*(ny-1))
+    real(dp), intent(in) :: hx, hy
+    real(dp), intent(inout) :: b((nx+1)*(ny+1))
     integer :: l
-    real(dp) :: x((nx-1)*(ny-1)), ax((nx-1)*(ny-1))
-    real(dp) :: r((nx-1)*(ny-1)), p((nx-1)*(ny-1)), q((nx-1)*(ny-1))
+    real(dp) :: x((nx+1)*(ny+1)), ax((nx+1)*(ny+1))
+    real(dp) :: r((nx+1)*(ny+1)), p((nx+1)*(ny+1)), q((nx+1)*(ny+1))
     real(dp) :: rtr, alpha, rtrold, beta
 
-    x = 0
+    x = 0.0_dp
+    x(1) = 1_dp
     call apply_pressure_laplacian(ax, x, nx, ny, hx, hy)
-    
+    x = ax
+    call apply_pressure_laplacian(ax, x, nx, ny, hx, hy)    
+    r = b - sum(b)/((nx+1)*(ny+1))    
+
     r = b - ax
     p = r
     rtr = sum(r*r)
@@ -214,6 +218,13 @@ contains
      beta = rtr/rtrold
      p = r + beta*p
      l = l + 1
+     !write(*,*) l, rtr
+
+     if (mod(l,5) .eq. 0) then
+      x = x - sum(x)/((nx+1)*(ny+1))
+      r = r - sum(r)/((nx+1)*(ny+1))
+     end if
+      
 
     end do
 
@@ -300,7 +311,7 @@ program ins
   write(*,*) 'Factoring matrices'
   call cpu_time(time1)
   ! Factor
-  CALL DGETRF(sys_size_pbig,sys_size_pbig,LapPbig,sys_size_pbig,ipiv_pbig,INFO)
+  !CALL DGETRF(sys_size_pbig,sys_size_pbig,LapPbig,sys_size_pbig,ipiv_pbig,INFO)
   !CALL DGETRF(sys_size_uv,sys_size_uv,LapUV,sys_size_uv,ipiv_uv,INFO)
   call cpu_time(time2)
   write(*,*) '... factorization took ',time2-time1 ,' seconds'
@@ -347,14 +358,15 @@ program ins
   call updateBCforU(u,v,gux,guy,gvx,gvy,nx,ny)
   call computeAndUpdateGPforU(u,v,hx,hy,nx,ny)
   call computeGPforP(pbx,pby,u,v,gux,guy,gvx,gvy,hx,hy,nu,nx,ny)
-  call setupRhsideP(pbvecbig,nx,ny,hx,hy,u,v,alpha,pbx,pby)
-
+  !call setupRhsideP(pbvecbig,nx,ny,hx,hy,u,v,alpha,pbx,pby)
+  call setupRhsideP(pvec, nx, ny, hx, hy, u, v, alpha, pbx, pby)
+  
   ! !!! YOUR CODE REPLACES THIS !!!!
   ! Solve for p
-  CALL DGETRS('N',sys_size_pbig,1,LapPbig,sys_size_pbig,IPIV_pbig,&
-    pbvecbig,sys_size_pbig,INFO)
+  !CALL DGETRS('N',sys_size_pbig,1,LapPbig,sys_size_pbig,IPIV_pbig,&
+  !  pbvecbig,sys_size_pbig,INFO)
 
-  !call GS(LapPbig,pbvecbig,sys_size_pbig)
+  call CG_pressure(pvec, nx, ny, hx, hy)
 
   ! NOTES:
   ! 'N' specifies 'no transpose'
@@ -375,7 +387,8 @@ program ins
   p = 0.0d0
   do j = 0,ny
    do i = 0,nx
-    p(i,j) = pbvecbig(1+i+j*(nx+1))
+    !p(i,j) = pbvecbig(1+i+j*(nx+1))
+    p(i,j) = pvec(1+i+j*(nx+1))
    end do
   end do
 
@@ -387,14 +400,14 @@ program ins
   call updateBCforU(uold,vold,gux,guy,gvx,gvy,nx,ny)
   call computeAndUpdateGPforU(uold,vold,hx,hy,nx,ny)
   call computeGPforP(pbx,pby,uold,vold,gux,guy,gvx,gvy,hx,hy,nu,nx,ny)
-  call setupRhsideP(pbvecbig,nx,ny,hx,hy,uold,vold,alpha,pbx,pby)
+  call setupRhsideP(pvec,nx,ny,hx,hy,uold,vold,alpha,pbx,pby)
 
   ! !!! YOUR CODE REPLACES THIS !!!!
   ! Solve for p
-  CALL DGETRS('N',sys_size_pbig,1,LapPbig,sys_size_pbig,IPIV_pbig,pbvecbig,&
-    sys_size_pbig,INFO)
+  !CALL DGETRS('N',sys_size_pbig,1,LapPbig,sys_size_pbig,IPIV_pbig,pbvecbig,&
+  !  sys_size_pbig,INFO)
 
-  !call GS(LapPbig, pbvecbig, sys_size_pbig)
+  call CG_pressure(pvec, nx, ny, hx, hy)
 
   ! This appears to be the same solve as above
   ! can just use name PCG function ideally
@@ -404,7 +417,8 @@ program ins
   ! Swap long vector into 2D array
   do j = 0,ny
    do i = 0,nx
-    pold(i,j) = pbvecbig(1+i+j*(nx+1))
+    !pold(i,j) = pbvecbig(1+i+j*(nx+1))
+    pold(i,j) = pvec(1+i+j*(nx+1))
    end do
   end do
   call computeLE(Leuold,Levold,uold,vold,pold,hx,hy,nx,ny)
@@ -449,14 +463,14 @@ program ins
    call updateBCforU(u,v,gux,guy,gvx,gvy,nx,ny)
    call computeAndUpdateGPforU(u,v,hx,hy,nx,ny)
    call computeGPforP(pbx,pby,u,v,gux,guy,gvx,gvy,hx,hy,nu,nx,ny)
-   call setupRhsideP(pbvecbig,nx,ny,hx,hy,u,v,alpha,pbx,pby)
+   call setupRhsideP(pvec,nx,ny,hx,hy,u,v,alpha,pbx,pby)
 
    ! !!! YOUR CODE REPLACES THIS !!!!
    ! Solve for p
-   CALL DGETRS('N',sys_size_pbig,1,LapPbig,sys_size_pbig,IPIV_pbig,&
-     pbvecbig,sys_size_pbig,INFO)
+   !CALL DGETRS('N',sys_size_pbig,1,LapPbig,sys_size_pbig,IPIV_pbig,&
+   !  pbvecbig,sys_size_pbig,INFO)
 
-   !call GS(LapPbig, pbvecbig, sys_size_pbig)   
+   call CG_pressure(pvec, nx, ny, hx, hy)
 
    ! solves (LapPbig) * x = pbvecbig and stores x in pbvecbig
 
@@ -465,7 +479,8 @@ program ins
    ! Swap long vector into 2D array
    do j = 0,ny
     do i = 0,nx
-     p(i,j) = pbvecbig(1+i+j*(nx+1))
+     !p(i,j) = pbvecbig(1+i+j*(nx+1))
+     p(i,j) = pvec(1+i+j*(nx+1))
     end do
    end do
    ! Swap
