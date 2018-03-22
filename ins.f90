@@ -9,12 +9,12 @@ module problem_setup
   implicit none
   real(dp), parameter :: Lx = 1.0_dp
   real(dp), parameter :: Ly = 1.0_dp
-  integer,  parameter :: Nx = 50          ! Number of gridpoints in x
-  integer,  parameter :: Ny = 50          ! Number of gridpoints in y
-  integer,  parameter :: Nsteps = 5000    ! Number of timesteps  
+  integer,  parameter :: Nx = 500          ! Number of gridpoints in x
+  integer,  parameter :: Ny = 500          ! Number of gridpoints in y
+  integer,  parameter :: Nsteps = 100    ! Number of timesteps  
   logical, parameter :: do_plot = .true.  ! Plot?
   integer,  parameter :: Nplot = 100      ! If so plot every Nplot steps  
-  real(dp), parameter :: k = 0.01_dp      ! Timestep 
+  real(dp), parameter :: k = 0.0001_dp      ! Timestep 
   real(dp), parameter :: alpha = 0.1_dp/k 
   real(dp), parameter :: nu = 0.01_dp     ! Viscosity 
   real(dp), parameter :: pi = acos(-1.d0)
@@ -176,7 +176,7 @@ contains
      beta = rtr/rtrold
      p = r + beta*p
      l = l + 1
-     !write(*,*) l, rtr
+     write(*,*) l, rtr
     end do
 
     b = x
@@ -196,13 +196,14 @@ contains
     real(dp) :: rtr, alpha, rtrold, beta
 
     x = 0.0_dp
-    x(1) = 1_dp
-    call apply_pressure_laplacian(ax, x, nx, ny, hx, hy)
-    x = ax
+    x(1) = 1.0_dp
+    !call apply_pressure_laplacian(ax, x, nx, ny, hx, hy)
+    !x = ax
     call apply_pressure_laplacian(ax, x, nx, ny, hx, hy)    
+    x = x - sum(x)/((nx+1)*(ny+1))
     r = b - sum(b)/((nx+1)*(ny+1))    
 
-    r = b - ax
+    r = r - ax
     p = r
     rtr = sum(r*r)
 
@@ -271,43 +272,43 @@ program ins
   write(*,*) 'Setting up Laplacians'
   call cpu_time(time1)
   ! setup pressure laplacian
-  allocate(LapP((Nx+1)*(Ny+1),(Nx+1)*(Ny+1)))
+  !allocate(LapP((Nx+1)*(Ny+1),(Nx+1)*(Ny+1)))
   allocate(pvec((Nx+1)*(Ny+1)),lpvec((Nx+1)*(Ny+1)))
-  allocate(LapUV((Nx-1)*(Ny-1),(Nx-1)*(Ny-1)))
+  !allocate(LapUV((Nx-1)*(Ny-1),(Nx-1)*(Ny-1)))
   allocate(uvec((Nx-1)*(Ny-1)),vvec((Nx-1)*(Ny-1)))
-  allocate(pbvecbig((Nx+1)*(Ny+1)+1),pvecbig((Nx+1)*(Ny+1)+1))
+  !allocate(pbvecbig((Nx+1)*(Ny+1)+1),pvecbig((Nx+1)*(Ny+1)+1))
   !
-  pvec = 0.0_dp
-  do i = 1,(nx+1)*(ny+1)
-   pvec(i) = 1.0_dp
-   call apply_pressure_laplacian(lpvec,pvec,nx,ny,hx,hy)
-   pvec(i) = 0.0_dp
-   LapP(:,i) = lpvec
-  end do
+  !pvec = 0.0_dp
+  !do i = 1,(nx+1)*(ny+1)
+  ! pvec(i) = 1.0_dp
+  ! call apply_pressure_laplacian(lpvec,pvec,nx,ny,hx,hy)
+  ! pvec(i) = 0.0_dp
+  ! LapP(:,i) = lpvec
+  !end do
   ! call printdble2d(LapP,1,(nx+1)*(ny+1),1,(nx+1)*(ny+1),'LapP.txt')
   ! setup uv laplacian
-  uvec = 0.0_dp
-  do i = 1,(nx-1)*(ny-1)
-   uvec(i) = 1.0_dp
-   call apply_velocity_laplacian(vvec,uvec,nx,ny,hx,hy)
-   uvec(i) = 0.0_dp
-   LapUV(:,i) = -0.5_dp*nu*vvec
-   LapUV(i,i) = LapUV(i,i) + 1.0_dp/k
-  end do
+  !uvec = 0.0_dp
+  !do i = 1,(nx-1)*(ny-1)
+  ! uvec(i) = 1.0_dp
+  ! call apply_velocity_laplacian(vvec,uvec,nx,ny,hx,hy)
+  ! uvec(i) = 0.0_dp
+  ! LapUV(:,i) = -0.5_dp*nu*vvec
+  ! LapUV(i,i) = LapUV(i,i) + 1.0_dp/k
+  !end do
   ! call printdble2d(LapUV,1,(nx-1)*(ny-1),1,(nx-1)*(ny-1),'LapUV.txt')
-  allocate(LapPBig((Nx+1)*(Ny+1)+1,(Nx+1)*(Ny+1)+1))
-  LapPBig = 1.0_dp
-  LapPBig((Nx+1)*(Ny+1)+1,(Nx+1)*(Ny+1)+1) = 0.0_dp
-  LapPBig(1:(Nx+1)*(Ny+1),1:(Nx+1)*(Ny+1)) = LapP
+  !allocate(LapPBig((Nx+1)*(Ny+1)+1,(Nx+1)*(Ny+1)+1))
+  !LapPBig = 1.0_dp
+  !LapPBig((Nx+1)*(Ny+1)+1,(Nx+1)*(Ny+1)+1) = 0.0_dp
+  !LapPBig(1:(Nx+1)*(Ny+1),1:(Nx+1)*(Ny+1)) = LapP
   call cpu_time(time2)
   write(*,*) '... done setting up Laplacians it took ',time2-time1 ,' seconds'
 
   ! Set up dense linear algebra stuff.
   sys_size_p = (nx+1)*(ny+1)
   sys_size_pbig = sys_size_p + 1
-  allocate(ipiv_pbig(sys_size_pbig))
+  !allocate(ipiv_pbig(sys_size_pbig))
   sys_size_uv = (nx-1)*(ny-1)
-  allocate(ipiv_uv(sys_size_uv))
+  !allocate(ipiv_uv(sys_size_uv))
   write(*,*) 'Factoring matrices'
   call cpu_time(time1)
   ! Factor
@@ -505,7 +506,7 @@ program ins
     write(*,*) "Solution blew up?"
     stop 123
    end if
-   if (mod(nt,100).eq.0) then
+   if (mod(nt,1).eq.0) then
     write(*,*) "Timestep ", nt, " out of ", nsteps
    end if
 
