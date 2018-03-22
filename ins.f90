@@ -138,7 +138,7 @@ end module afuns
 module new_nla_solvers
   use type_defs
   implicit none
-  real(dp), parameter :: TOL = 1.0e-5_dp
+  real(dp), parameter :: TOL = 1.0e-10_dp
 
 contains
 
@@ -152,7 +152,7 @@ contains
     integer :: l
     real(dp) :: x((nx-1)*(ny-1)), ax((nx-1)*(ny-1))
     real(dp) :: r((nx-1)*(ny-1)), p((nx-1)*(ny-1)), q((nx-1)*(ny-1))
-    real(dp) :: rtr, alpha, rtrold, beta
+    real(dp) :: rtr, alpha, rtrold, beta, reltol
 
     x = 0.0_dp
     call apply_velocity_laplacian(ax, x, nx, ny, hx, hy)
@@ -165,7 +165,9 @@ contains
 
     l = 0 
 
-    do while(sum(r*r) .gt. TOL)
+    reltol = sum(b*b) * TOL * TOL
+
+    do while(rtr .gt. reltol)
      call apply_velocity_laplacian(q, p, nx, ny, hx, hy)
      q = p/k - nu*q/2
      alpha = rtr / sum(p*q)
@@ -176,7 +178,7 @@ contains
      beta = rtr/rtrold
      p = r + beta*p
      l = l + 1
-     write(*,*) l, rtr
+     !write(*,*) l, rtr
     end do
 
     b = x
@@ -193,7 +195,7 @@ contains
     integer :: l
     real(dp) :: x((nx+1)*(ny+1)), ax((nx+1)*(ny+1))
     real(dp) :: r((nx+1)*(ny+1)), p((nx+1)*(ny+1)), q((nx+1)*(ny+1))
-    real(dp) :: rtr, alpha, rtrold, beta
+    real(dp) :: rtr, alpha, rtrold, beta, reltol
 
     x = 0.0_dp
     x(1) = 1.0_dp
@@ -209,7 +211,9 @@ contains
 
     l = 0
 
-    do while(sum(r*r) .gt. TOL)
+    reltol = sum(b*b) * TOL * TOL
+
+    do while(rtr .gt. reltol)
      call apply_pressure_laplacian(q, p, nx, ny, hx, hy)
      alpha = rtr / sum(p*q)
      x = x + alpha*p
@@ -221,7 +225,7 @@ contains
      l = l + 1
      !write(*,*) l, rtr
 
-     if (mod(l,5) .eq. 0) then
+     if (mod(l,1) .eq. 0) then
       x = x - sum(x)/((nx+1)*(ny+1))
       r = r - sum(r)/((nx+1)*(ny+1))
      end if
@@ -233,6 +237,87 @@ contains
 
   end subroutine CG_pressure
 
+  subroutine precond_solve(y,b,n,hx)
+    use type_defs
+    implicit none
+    integer, intent(in) :: n
+    real(dp), intent(out) :: y(n)
+    real(dp), intent(in) :: b(n), hx
+    integer :: i
+
+    y = b
+    !y = -hx**2 * b / 4.0_dp
+
+  end subroutine precond_solve
+
+  subroutine BiCGSTAB_pressure(b, nx, ny, hx, hy)
+    use type_defs
+    use afuns
+    implicit none
+    integer, intent(in) :: nx, ny
+    real(dp), intent(in) :: hx, hy
+    real(dp), intent(inout) :: b((nx+1)*(ny+1))
+    integer l
+    real(dp) :: ax((nx+1)*(ny+1)), x0((nx+1)*(ny+1)), r((nx+1)*(ny+1))
+    real(dp) :: r0((nx+1)*(ny+1)), rsnook((nx+1)*(ny+1)), s0((nx+1)*(ny+1))
+    real(dp) :: t0((nx+1)*(ny+1)), p((nx+1)*(ny+1)), v0((nx+1)*(ny+1))
+    real(dp) :: p0((nx+1)*(ny+1)), y((nx+1)*(ny+1)), x((nx+1)*(ny+1))
+    real(dp) :: delta, rho, rho0, alpha, beta, omega
+
+    y = b
+    call precond_solve(b, y, (nx+1)*(ny+1), hx)
+
+    delta = TOL*sqrt(sum(b*b))
+    rho = 10.0_dp*delta
+
+    x = 0.0_dp
+    x(1) = 1.0_dp
+    x(nx) = 1.0_dp
+    
+    x0 = x
+    call apply_pressure_laplacian(ax, x0, nx, ny, hx, hy)
+    y = ax
+    call precond_solve(ax, y, (nx+1)*(ny+1), hx)
+    r0 = b-ax
+    rsnook = r0
+    rho0 = sum(rsnook*r0)
+    v0 = r0
+    p0 = r0
+
+    l = 0
+    do while(sqrt(rho) .gt. delta)
+     if (mod(l,10).eq.5) then
+      x = x - sum(x)/((nx+1)*(ny+1))
+      p0 = p0 - sum(p0)/((nx+1)*(ny+1))
+     end if
+   
+     call apply_pressure_laplacian(v0, p0, nx, ny, hx, hy)
+     y = v0
+     call apply_pressure_laplacian(v0, p0, nx, ny, hx, hy)
+     call precond_solve(t0, y, (nx+1)*(ny+1), hx)
+     alpha = rho0/sum(rsnook*v0)
+     s0 = r0 - alpha*v0
+     call apply_pressure_laplacian(t0, s0, nx, ny, hx, hy)
+     y = t0
+     call precond_solve(t0, y, (nx+1)*(ny+1), hx)
+     omega = sum(t0*s0)/sum(t0*t0)
+     x = x + alpha*p0 + omega*s0
+     r = s0 - omega*t0
+     rho = sum(rsnook*r)
+     beta = (rho/rho0)*(alpha/omega)
+     p = r + beta*(p0-omega*v0)
+     
+     p0 = p
+     rho0 = rho
+     r0 = r
+     rho = sum(r*r)
+     l = l + 1
+     !write(*,*) l, rho
+    end do
+
+    b = x
+  end subroutine BiCGSTAB_pressure
+  
 end module new_nla_solvers
 
 
@@ -250,7 +335,11 @@ program ins
   real(dp) :: hx,hy,time1,time2
   integer :: i,j,sys_size_p,sys_size_pbig,info,nt,sys_size_uv
   character(100) :: str
-
+  
+  write(*,*) 'Performing problem setup.'
+  call cpu_time(time1)
+  
+  
   ! Set up the grid, we include the ghost points.
   hx = Lx/real(Nx,dp)
   hy = Ly/real(Ny,dp)
@@ -269,8 +358,8 @@ program ins
   allocate(leu(0:nx,0:ny),lev(0:nx,0:ny),liu(0:nx,0:ny),liv(0:nx,0:ny))
   allocate(leuold(0:nx,0:ny),levold(0:nx,0:ny),liuold(0:nx,0:ny),livold(0:nx,0:ny))
 
-  write(*,*) 'Setting up Laplacians'
-  call cpu_time(time1)
+  !write(*,*) 'Setting up Laplacians'
+  !call cpu_time(time1)
   ! setup pressure laplacian
   !allocate(LapP((Nx+1)*(Ny+1),(Nx+1)*(Ny+1)))
   allocate(pvec((Nx+1)*(Ny+1)),lpvec((Nx+1)*(Ny+1)))
@@ -300,22 +389,22 @@ program ins
   !LapPBig = 1.0_dp
   !LapPBig((Nx+1)*(Ny+1)+1,(Nx+1)*(Ny+1)+1) = 0.0_dp
   !LapPBig(1:(Nx+1)*(Ny+1),1:(Nx+1)*(Ny+1)) = LapP
-  call cpu_time(time2)
-  write(*,*) '... done setting up Laplacians it took ',time2-time1 ,' seconds'
-
+  !call cpu_time(time2)
+  !write(*,*) '... done setting up Laplacians it took ',time2-time1 ,' seconds'
+  
   ! Set up dense linear algebra stuff.
   sys_size_p = (nx+1)*(ny+1)
   sys_size_pbig = sys_size_p + 1
   !allocate(ipiv_pbig(sys_size_pbig))
   sys_size_uv = (nx-1)*(ny-1)
   !allocate(ipiv_uv(sys_size_uv))
-  write(*,*) 'Factoring matrices'
-  call cpu_time(time1)
+  !write(*,*) 'Factoring matrices'
+  !call cpu_time(time1)
   ! Factor
   !CALL DGETRF(sys_size_pbig,sys_size_pbig,LapPbig,sys_size_pbig,ipiv_pbig,INFO)
   !CALL DGETRF(sys_size_uv,sys_size_uv,LapUV,sys_size_uv,ipiv_uv,INFO)
-  call cpu_time(time2)
-  write(*,*) '... factorization took ',time2-time1 ,' seconds'
+  !call cpu_time(time2)
+  !write(*,*) '... factorization took ',time2-time1 ,' seconds'
 
   ! These are the arrays for the boundary forcing u=gu, v=gv on the
   ! boundary. We order them
@@ -338,7 +427,7 @@ program ins
   call random_number(v(0:nx,0:ny))
   u(0:nx,0:ny) = u(0:nx,0:ny) - 0.5_dp
   v(0:nx,0:ny) = v(0:nx,0:ny) - 0.5_dp
-
+  
   do j = 0,ny
    do i = 0,nx
     ! u(i,j) = sin(pi*x(i))*sin(pi*y(j))
@@ -347,7 +436,7 @@ program ins
    end do
   end do
 
-  guy(2,:) = 1.0_dp
+  guy(2,:) = sin(3*pi*x)
   u = 0.d0
   v = 0.d0
 
@@ -368,6 +457,7 @@ program ins
   !  pbvecbig,sys_size_pbig,INFO)
 
   call CG_pressure(pvec, nx, ny, hx, hy)
+  !call BiCGSTAB_pressure(pvec, nx, ny, hx, hy)
 
   ! NOTES:
   ! 'N' specifies 'no transpose'
@@ -409,6 +499,7 @@ program ins
   !  sys_size_pbig,INFO)
 
   call CG_pressure(pvec, nx, ny, hx, hy)
+  !call BiCGSTAB_pressure(pvec, nx, ny, hx, hy)
 
   ! This appears to be the same solve as above
   ! can just use name PCG function ideally
@@ -424,6 +515,9 @@ program ins
   end do
   call computeLE(Leuold,Levold,uold,vold,pold,hx,hy,nx,ny)
   call computeLI(Liuold,Livold,uold,vold,nu,hx,hy,nx,ny)
+  
+  call cpu_time(time2)
+  write(*,*) 'Problem setup complete in ', time2-time1, ' seconds.'
 
   write(*,*) 'Starting Time Loop....'
   call cpu_time(time1)
@@ -472,6 +566,7 @@ program ins
    !  pbvecbig,sys_size_pbig,INFO)
 
    call CG_pressure(pvec, nx, ny, hx, hy)
+   !call BiCGSTAB_pressure(pvec, nx, ny, hx, hy)
 
    ! solves (LapPbig) * x = pbvecbig and stores x in pbvecbig
 
